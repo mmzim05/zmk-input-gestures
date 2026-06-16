@@ -32,10 +32,11 @@ properties:
       keeps moving in  the same direction, gradually getting slower by inertial-cursor-decay-percent.
   inertial-cursor-velocity-threshold:
     type: int
-    default: 2
+    default: 20
     description: |
-      A lower value makes it easier to activate the inertial, but increases the accidental activation.
-      The default value is a good compromise that works for me.
+      Minimum velocity (in tenths of raw_px/ms) to trigger inertial cursor.
+      0 = always trigger. 3 = 0.3 raw_px/ms (filters imperceptible lifts only).
+      20 = 2.0 raw_px/ms (old default, requires a noticeable flick).
   inertial-cursor-decay-percent:
     type: int
     default: 30

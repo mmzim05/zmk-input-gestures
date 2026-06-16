@@ -114,7 +114,7 @@ int inertial_cursor_handle_end(const struct device *dev) {
     LOG_DBG("velocity: %d (avg over %d events), threshold: %d",
         (int)velocity, n, (int)config->inertial_cursor.velocity_threshold);
 
-    if (velocity <= config->inertial_cursor.velocity_threshold) {
+    if (velocity <= (double)config->inertial_cursor.velocity_threshold / 10.0) {
         return -1;
     }
 
