@@ -28,8 +28,9 @@ static void inertial_cursor_work_handler(struct k_work *work) {
     data->accum_y -= (double)sy;
 
     if (sx != 0 || sy != 0) {
-        zmk_hid_mouse_movement_update(sx, sy);
+        zmk_hid_mouse_movement_set(sx, sy);
         zmk_endpoints_send_mouse_report();
+        zmk_hid_mouse_movement_set(0, 0);
     }
 
     if (fabs(data->delta_x) > 0.01 || fabs(data->delta_y) > 0.01 ||
