@@ -6,6 +6,7 @@ struct inertial_cursor_data {
     struct k_work_delayable inertial_work;
     uint16_t previous_x, previous_y;
     double delta_x, delta_y;
+    double accum_x, accum_y;
     uint32_t delta_time;
     double velocity_decay;
     gesture_data *all;
