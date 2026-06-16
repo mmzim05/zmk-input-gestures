@@ -8,6 +8,8 @@
 
 #include "input_processor_gestures.h"
 
+#define SCROLL_SENSITIVITY 0.25
+
 struct touch_detection_data {
     bool touching;
     struct k_work_delayable touch_end_timeout_work;

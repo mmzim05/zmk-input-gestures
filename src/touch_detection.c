@@ -10,9 +10,6 @@
 
 LOG_MODULE_DECLARE(gestures, CONFIG_ZMK_LOG_LEVEL);
 
-/* Applied to raw WHEEL values both for live scroll and inertia velocity.
- * Keeps fractional parts so small movements accumulate rather than truncate. */
-#define SCROLL_SENSITIVITY 0.25
 
 
 int touch_detection_handle_event(const struct device *dev, struct input_event *event, uint32_t param1,
@@ -60,7 +57,7 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
                 event->value = out;
             }
             if (event->value == 0) {
-                return ZMK_INPUT_PROC_DROP;
+                return ZMK_INPUT_PROC_STOP;
             }
         }
 
