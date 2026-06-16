@@ -10,7 +10,7 @@
 
 struct gesture_event_t {
     uint32_t last_touch_timestamp, previous_touch_timestamp, delta_time;
-    uint16_t x, y, previous_x, previous_y;
+    int16_t x, y, previous_x, previous_y;
     int delta_x, delta_y;
     bool absolute;
     struct input_event *raw_event_1;
