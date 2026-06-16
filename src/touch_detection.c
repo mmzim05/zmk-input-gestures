@@ -17,7 +17,7 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
     struct gesture_data *data = (struct gesture_data *)dev->data;
     k_work_reschedule(&data->touch_detection.touch_end_timeout_work, K_MSEC(config->touch_detection.wait_for_new_position_ms));
 
-    if (event->type != INPUT_EV_ABS && event->type == INPUT_EV_REL) {
+    if (event->type != INPUT_EV_ABS && event->type != INPUT_EV_REL) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
@@ -56,8 +56,8 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
         .y = data->touch_detection.y,
         .previous_x = data->touch_detection.previous_x,
         .previous_y = data->touch_detection.previous_y,
-        .delta_x = data->touch_detection.x - data->touch_detection.previous_x,
-        .delta_y = data->touch_detection.y - data->touch_detection.previous_y,
+        .delta_x = data->touch_detection.absolute ? (data->touch_detection.x - data->touch_detection.previous_x) : data->touch_detection.x,
+        .delta_y = data->touch_detection.absolute ? (data->touch_detection.y - data->touch_detection.previous_y) : data->touch_detection.y,
         .delta_time = now - data->touch_detection.last_touch_timestamp,
         .absolute = data->touch_detection.absolute,
         .raw_event_1 = data->touch_detection.previous_event,
