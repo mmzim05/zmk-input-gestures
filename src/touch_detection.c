@@ -92,6 +92,10 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
 
     if (!data->touch_detection.touching){
         data->touch_detection.touching = true;
+        if (data->touch_detection.absolute) {
+            gesture_event.delta_x = 0;
+            gesture_event.delta_y = 0;
+        }
         config->handle_touch_start(dev, &gesture_event);
     } else {
         config->handle_touch_continue(dev, &gesture_event);
