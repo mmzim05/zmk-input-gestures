@@ -6,6 +6,7 @@
 #include <math.h>
 #include "input_processor_gestures.h"
 #include "inertial_scroll.h"
+#include "touch_detection.h"
 
 LOG_MODULE_DECLARE(gestures, CONFIG_ZMK_LOG_LEVEL);
 
@@ -98,7 +99,7 @@ int inertial_scroll_handle_end(const struct device *dev) {
     }
 
     if (data->inertial_scroll.delta_time > 0) {
-        double scale = (double)SCROLL_ANIMATE_MSEC / data->inertial_scroll.delta_time;
+        double scale = (double)SCROLL_ANIMATE_MSEC / data->inertial_scroll.delta_time * SCROLL_SENSITIVITY;
         data->inertial_scroll.delta_v *= scale;
         data->inertial_scroll.delta_h *= scale;
     }

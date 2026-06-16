@@ -6,3 +6,11 @@ description: Converts INPUT_ABS_X/Y events to INPUT_REL_X/Y deltas
 compatible: "zmk,input-processor-abs-to-rel"
 
 include: ip_zero_param.yaml
+
+properties:
+  max-delta:
+    type: int
+    default: 0
+    description: |
+      Clamp per-tick delta to ±max-delta raw units. 0 = unlimited.
+      Use to cap cursor speed so a fast fling doesn't overshoot the screen.

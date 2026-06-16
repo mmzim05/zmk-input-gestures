@@ -10,6 +10,10 @@
 
 LOG_MODULE_DECLARE(gestures, CONFIG_ZMK_LOG_LEVEL);
 
+/* Applied to raw WHEEL values both for live scroll and inertia velocity.
+ * Keeps fractional parts so small movements accumulate rather than truncate. */
+#define SCROLL_SENSITIVITY 0.25
+
 
 int touch_detection_handle_event(const struct device *dev, struct input_event *event, uint32_t param1,
                                uint32_t param2, struct zmk_input_processor_state *state) {
@@ -34,10 +38,32 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
         data->touch_detection.last_touch_timestamp = now;
         if (!data->touch_detection.touching) {
             data->touch_detection.touching = true;
+            data->touch_detection.scroll_accum_v = 0;
+            data->touch_detection.scroll_accum_h = 0;
             config->handle_touch_start(dev, &gesture_event);
         } else {
             config->handle_touch_continue(dev, &gesture_event);
         }
+
+        // Accumulate with sensitivity scaling to avoid integer truncation choppiness.
+        // Only for scroll-only instances; cursor instances pass WHEEL events through as-is.
+        if (!config->inertial_cursor.enabled) {
+            if (event->code == INPUT_REL_WHEEL) {
+                data->touch_detection.scroll_accum_v += event->value * SCROLL_SENSITIVITY;
+                int out = (int)data->touch_detection.scroll_accum_v;
+                data->touch_detection.scroll_accum_v -= out;
+                event->value = out;
+            } else {
+                data->touch_detection.scroll_accum_h += event->value * SCROLL_SENSITIVITY;
+                int out = (int)data->touch_detection.scroll_accum_h;
+                data->touch_detection.scroll_accum_h -= out;
+                event->value = out;
+            }
+            if (event->value == 0) {
+                return ZMK_INPUT_PROC_DROP;
+            }
+        }
+
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
@@ -122,6 +148,8 @@ void touch_end_timeout_callback(struct k_work *work) {
     data->complete = true;
     data->scroll_v = 0;
     data->scroll_h = 0;
+    data->scroll_accum_v = 0;
+    data->scroll_accum_h = 0;
     config->handle_touch_end(dev);
 }
 
