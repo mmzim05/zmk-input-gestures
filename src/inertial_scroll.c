@@ -47,14 +47,15 @@ int inertial_scroll_handle_touch(const struct device *dev, struct gesture_event_
         return -1;
     }
 
-    if (event->delta_x != 0) {
-        data->inertial_scroll.delta_h = event->delta_x;
-    }
-    if (event->delta_y != 0) {
-        data->inertial_scroll.delta_v = event->delta_y;
-    }
-    if (event->delta_time != 0) {
-        data->inertial_scroll.delta_time = event->delta_time;
+    if (event->delta_x != 0 || event->delta_y != 0) {
+        uint8_t idx = data->inertial_scroll.vel_head;
+        data->inertial_scroll.vel_dh[idx] = event->delta_x;
+        data->inertial_scroll.vel_dv[idx] = event->delta_y;
+        data->inertial_scroll.vel_dt[idx] = event->delta_time ? event->delta_time : 10;
+        data->inertial_scroll.vel_head = (idx + 1) % INERTIAL_SCROLL_VEL_WINDOW;
+        if (data->inertial_scroll.vel_count < INERTIAL_SCROLL_VEL_WINDOW) {
+            data->inertial_scroll.vel_count++;
+        }
     }
 
     return 0;
@@ -75,6 +76,8 @@ int inertial_scroll_handle_touch_start(const struct device *dev, struct gesture_
     data->inertial_scroll.delta_time = 0;
     data->inertial_scroll.accum_v = 0;
     data->inertial_scroll.accum_h = 0;
+    data->inertial_scroll.vel_head = 0;
+    data->inertial_scroll.vel_count = 0;
 
     inertial_scroll_handle_touch(dev, event);
 
@@ -89,19 +92,31 @@ int inertial_scroll_handle_end(const struct device *dev) {
         return -1;
     }
 
-    double velocity = sqrt(
-        data->inertial_scroll.delta_v * data->inertial_scroll.delta_v +
-        data->inertial_scroll.delta_h * data->inertial_scroll.delta_h
-    ) / (data->inertial_scroll.delta_time > 0 ? data->inertial_scroll.delta_time : 1);
+    int n = data->inertial_scroll.vel_count;
+    if (n == 0) {
+        return -1;
+    }
+    double sum_dh = 0, sum_dv = 0;
+    uint32_t sum_dt = 0;
+    for (int i = 0; i < n; i++) {
+        sum_dh += data->inertial_scroll.vel_dh[i];
+        sum_dv += data->inertial_scroll.vel_dv[i];
+        sum_dt += data->inertial_scroll.vel_dt[i];
+    }
+    double avg_dh = sum_dh / n;
+    double avg_dv = sum_dv / n;
+    double avg_dt = (double)sum_dt / n;
 
-    if (velocity <= config->inertial_scroll.velocity_threshold) {
+    double velocity = sqrt(avg_dh * avg_dh + avg_dv * avg_dv) / avg_dt;
+
+    if (velocity <= (double)config->inertial_scroll.velocity_threshold / 10.0) {
         return -1;
     }
 
-    if (data->inertial_scroll.delta_time > 0) {
-        double scale = (double)SCROLL_ANIMATE_MSEC / data->inertial_scroll.delta_time * SCROLL_SENSITIVITY;
-        data->inertial_scroll.delta_v *= scale;
-        data->inertial_scroll.delta_h *= scale;
+    if (avg_dt > 0) {
+        double scale = (double)SCROLL_ANIMATE_MSEC / avg_dt * SCROLL_SENSITIVITY;
+        data->inertial_scroll.delta_v = avg_dv * scale;
+        data->inertial_scroll.delta_h = avg_dh * scale;
     }
 
     data->inertial_scroll.accum_v = 0;

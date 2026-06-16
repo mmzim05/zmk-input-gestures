@@ -67,9 +67,11 @@ properties:
       keeps going in the same direction, gradually slowing by inertial-scroll-decay-percent.
   inertial-scroll-velocity-threshold:
     type: int
-    default: 1
+    default: 10
     description: |
-      Minimum velocity to trigger inertial scroll. Lower = easier to activate.
+      Minimum velocity (in tenths of raw_px/ms) to trigger inertial scroll.
+      0 = always trigger. 3 = 0.3 raw_px/ms (filters imperceptible lifts only).
+      10 = 1.0 raw_px/ms (old default).
   inertial-scroll-decay-percent:
     type: int
     default: 5

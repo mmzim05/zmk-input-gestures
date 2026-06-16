@@ -2,12 +2,19 @@
 
 #include "input_processor_gestures.h"
 
+#define INERTIAL_SCROLL_VEL_WINDOW 5
+
 struct inertial_scroll_data {
     struct k_work_delayable scroll_work;
     double delta_v, delta_h;
     double accum_v, accum_h;
     uint32_t delta_time;
     double velocity_decay;
+    int32_t vel_dh[INERTIAL_SCROLL_VEL_WINDOW];
+    int32_t vel_dv[INERTIAL_SCROLL_VEL_WINDOW];
+    uint32_t vel_dt[INERTIAL_SCROLL_VEL_WINDOW];
+    uint8_t vel_head;
+    uint8_t vel_count;
     gesture_data *all;
 };
 
