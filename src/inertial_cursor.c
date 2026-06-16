@@ -24,7 +24,7 @@ static void inertial_cursor_work_handler(struct k_work *work) {
     data->delta_y *= data->velocity_decay;
 
     if (abs((int) data->delta_x) > 0 || abs((int) data->delta_y) > 0) {
-        zmk_hid_mouse_movement_update((int) data->delta_y, (int) -data->delta_x);
+        zmk_hid_mouse_movement_update((int) data->delta_x, (int) data->delta_y);
         zmk_endpoints_send_mouse_report();
         k_work_reschedule(&data->inertial_work, K_MSEC(data->delta_time));
     }
