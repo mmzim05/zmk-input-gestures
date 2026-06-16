@@ -2,9 +2,9 @@
  * ABS-to-REL input processor with optional CCW rotation.
  * Converts INPUT_ABS_X/Y to INPUT_REL_X/Y deltas.
  *
- * Rotation uses precomputed fixed-point cos/sin (1024-scaled) from DT config,
- * avoiding runtime trig. The X cross-axis term uses the previous cycle's dy
- * (1-sample lag), imperceptible at normal trackpad speeds.
+ * Rotation uses precomputed fixed-point cos/sin (1024-scaled) from DT config.
+ * Sub-pixel accumulators (x_rem/y_rem) carry fractional cross-axis contributions
+ * across events so slow movements don't lose the rotation component to truncation.
  */
 
 #define DT_DRV_COMPAT zmk_input_processor_abs_to_rel
@@ -27,6 +27,8 @@ struct abs_to_rel_data {
     int16_t prev_y;
     int32_t cur_dx;   /* this cycle's raw dx, for Y sin cross-term */
     int32_t prev_dy;  /* previous cycle's raw dy, for X sin cross-term (1-sample lag) */
+    int32_t x_rem;    /* sub-pixel accumulator for X: carries fractional part across events */
+    int32_t y_rem;    /* sub-pixel accumulator for Y: carries fractional part across events */
     uint32_t last_event_ms;
 };
 
@@ -45,6 +47,8 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
         data->initialized = false;
         data->cur_dx = 0;
         data->prev_dy = 0;
+        data->x_rem = 0;
+        data->y_rem = 0;
     }
     data->last_event_ms = now;
 
@@ -57,8 +61,11 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
         }
         data->prev_x = cur;
         data->cur_dx = dx;
-        /* X: prev_dy used as 1-sample approximation for -dy*sin cross-term */
-        int32_t rotated = ((int32_t)dx * cfg->cos_fp - data->prev_dy * cfg->sin_fp) >> 10;
+        /* X: prev_dy as 1-sample approximation for -dy*sin cross-term.
+         * Accumulate into x_rem so slow cross-axis contributions don't vanish. */
+        data->x_rem += (int32_t)dx * cfg->cos_fp - data->prev_dy * cfg->sin_fp;
+        int32_t rotated = data->x_rem >> 10;
+        data->x_rem -= rotated << 10;
         event->type = INPUT_EV_REL;
         event->code = INPUT_REL_X;
         event->value = rotated;
@@ -72,8 +79,11 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
         data->prev_y = cur;
         data->initialized = true;
         data->prev_dy = dy;
-        /* Y: cur_dx (this cycle's dx) gives exact sin cross-term */
-        int32_t rotated = (data->cur_dx * cfg->sin_fp + (int32_t)dy * cfg->cos_fp) >> 10;
+        /* Y: cur_dx (this cycle's dx) gives exact sin cross-term.
+         * Accumulate into y_rem so slow cross-axis contributions don't vanish. */
+        data->y_rem += data->cur_dx * cfg->sin_fp + (int32_t)dy * cfg->cos_fp;
+        int32_t rotated = data->y_rem >> 10;
+        data->y_rem -= rotated << 10;
         event->type = INPUT_EV_REL;
         event->code = INPUT_REL_Y;
         event->value = rotated;
