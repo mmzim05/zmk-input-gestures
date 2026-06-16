@@ -7,12 +7,14 @@ Custom ZMK input processor module for the Toucan split keyboard. Adds gesture su
 - Added `zmk,input-processor-abs-to-rel` — converts ABS_X/Y events from the Cirque (absolute mode) into REL_X/Y deltas, with max-delta clamping and sub-pixel accumulators so small movements aren't lost to truncation
 - Fixed inertial cursor velocity estimation: replaced single-event snapshot with a 5-event circular buffer (`vel_dx/dy/dt`) that averages the last 5 event pairs — eliminates outlier spikes at lift
 - Fixed inertial cursor speed: added `inertial-cursor-speed-scale` property (percent) applied to starting velocity so inertial animation matches live cursor speed (compensates for `zip_xy_scaler` being bypassed during HID output)
-- Rescaled velocity threshold to tenths of raw_px/ms so small values are expressible (DT value 3 = 0.3 raw_px/ms)
+- Rescaled cursor and scroll velocity thresholds to tenths of raw_px/ms so small values are expressible (DT value 3 = 0.3 raw_px/ms)
+- Applied same 5-event velocity window + stale-delta fix + tenths threshold to inertial scroll (`src/inertial_scroll.c`)
 
 ## Key files
 
 - `src/input_processor_abs_to_rel.c` — ABS→REL converter
-- `src/inertial_cursor.c` / `src/inertial_cursor.h` — inertial animation, velocity window
+- `src/inertial_cursor.c` / `src/inertial_cursor.h` — inertial cursor animation, 5-event velocity window
+- `src/inertial_scroll.c` / `src/inertial_scroll.h` — inertial scroll animation, same 5-event window
 - `dts/bindings/zmk,input-processor-gestures.yaml` — gesture processor DT binding
 - `dts/bindings/zmk,input-processor-abs-to-rel.yaml` — abs-to-rel DT binding
 
