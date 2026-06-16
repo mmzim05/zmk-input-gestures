@@ -5,7 +5,6 @@
 #include <zmk/endpoints.h>
 #include <math.h>
 #include <stdlib.h>
-
 #include "input_processor_gestures.h"
 #include "inertial_cursor.h"
 
@@ -48,13 +47,12 @@ int inertial_cursor_handle_touch(const struct device *dev, struct gesture_event_
         return -1;
     }
 
-    if (event->delta_x != 0 || event->delta_y != 0) {
-        double dx = event->delta_x;
-        double dy = event->delta_y;
-        double c = config->inertial_cursor.cos_fp / 1024.0;
-        double s = config->inertial_cursor.sin_fp / 1024.0;
-        data->inertial_cursor.delta_x = dx * c - dy * s;
-        data->inertial_cursor.delta_y = dx * s + dy * c;
+    if (event->delta_x != 0) {
+        data->inertial_cursor.delta_x = event->delta_x;
+    }
+
+    if (event->delta_y != 0) {
+        data->inertial_cursor.delta_y = event->delta_y;
     }
 
     if (event->delta_time != 0) {
@@ -130,10 +128,11 @@ int inertial_cursor_init(const struct device *dev) {
     struct gesture_data *data = (struct gesture_data *)dev->data;
     struct gesture_config *config = (struct gesture_config *)dev->config;
 
-    LOG_DBG("inertial_cursor: %s, velocity_threshold: %d, decay_percent: %d",
-        config->inertial_cursor.enabled ? "yes" : "no",
+    LOG_DBG("inertial_cursor: %s, velocity_threshold: %d, decay_percent: %d", 
+        config->inertial_cursor.enabled ? "yes" : "no", 
         config->inertial_cursor.velocity_threshold,
         config->inertial_cursor.decay_percent);
+
 
     if (!config->inertial_cursor.enabled) {
         return -1;

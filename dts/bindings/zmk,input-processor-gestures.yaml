@@ -119,19 +119,6 @@ properties:
       to activate.
       The default value is a good compromise that works for me.
 
-  rotation-cos-fp:
-    type: int
-    default: 1024
-    description: |
-      Cosine of CCW rotation angle, scaled by 1024. Default 1024 = no rotation.
-      For 10° CCW: 1008. Match the value on the abs-to-rel processor.
-  rotation-sin-fp:
-    type: int
-    default: 0
-    description: |
-      Sine of CCW rotation angle, scaled by 1024. Default 0 = no rotation.
-      For 10° CCW: 178. Match the value on the abs-to-rel processor.
-
   wait-for-new-position-ms:
     type: int
     default: 30

@@ -16,8 +16,6 @@ struct inertial_cursor_config {
     const bool enabled;
     const uint16_t velocity_threshold;
     const uint8_t decay_percent;
-    const int16_t cos_fp;  /* cos(rotation) * 1024 */
-    const int16_t sin_fp;  /* sin(rotation) * 1024 */
 };
 
 handle_init_t inertial_cursor_init;

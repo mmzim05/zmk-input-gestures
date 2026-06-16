@@ -1,10 +1,8 @@
 /*
- * ABS-to-REL input processor with optional CCW rotation.
- * Converts INPUT_ABS_X/Y to INPUT_REL_X/Y deltas.
- *
- * Rotation uses precomputed fixed-point cos/sin (1024-scaled) from DT config.
- * Sub-pixel accumulators (x_rem/y_rem) carry fractional cross-axis contributions
- * across events so slow movements don't lose the rotation component to truncation.
+ * Simple ABS-to-REL input processor.
+ * Converts INPUT_ABS_X/Y events to INPUT_REL_X/Y deltas from previous position.
+ * Each device instance maintains its own state, so multiple independent copies
+ * can coexist in different input-processor chains.
  */
 
 #define DT_DRV_COMPAT zmk_input_processor_abs_to_rel
@@ -17,18 +15,12 @@ LOG_MODULE_REGISTER(abs_to_rel, CONFIG_ZMK_LOG_LEVEL);
 
 struct abs_to_rel_config {
     uint16_t max_delta;
-    int16_t cos_fp;  /* cos(rotation) * 1024 */
-    int16_t sin_fp;  /* sin(rotation) * 1024 */
 };
 
 struct abs_to_rel_data {
     bool initialized;
     int16_t prev_x;
     int16_t prev_y;
-    int32_t cur_dx;   /* this cycle's raw dx, for Y sin cross-term */
-    int32_t prev_dy;  /* previous cycle's raw dy, for X sin cross-term (1-sample lag) */
-    int32_t x_rem;    /* sub-pixel accumulator for X: carries fractional part across events */
-    int32_t y_rem;    /* sub-pixel accumulator for Y: carries fractional part across events */
     uint32_t last_event_ms;
 };
 
@@ -42,51 +34,37 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
+    /* If more than 50 ms has passed since the last ABS event the finger was
+     * lifted.  Reset so the first event of the new touch produces delta = 0. */
     uint32_t now = k_uptime_get();
     if (data->initialized && (now - data->last_event_ms) > 50) {
         data->initialized = false;
-        data->cur_dx = 0;
-        data->prev_dy = 0;
-        data->x_rem = 0;
-        data->y_rem = 0;
     }
     data->last_event_ms = now;
 
     if (event->code == INPUT_ABS_X) {
         int16_t cur = (int16_t)event->value;
-        int16_t dx = data->initialized ? (cur - data->prev_x) : 0;
+        int16_t delta = data->initialized ? (cur - data->prev_x) : 0;
         if (cfg->max_delta > 0) {
-            if (dx >  (int16_t)cfg->max_delta) dx =  (int16_t)cfg->max_delta;
-            if (dx < -(int16_t)cfg->max_delta) dx = -(int16_t)cfg->max_delta;
+            if (delta >  (int16_t)cfg->max_delta) delta =  (int16_t)cfg->max_delta;
+            if (delta < -(int16_t)cfg->max_delta) delta = -(int16_t)cfg->max_delta;
         }
         data->prev_x = cur;
-        data->cur_dx = dx;
-        /* X: prev_dy as 1-sample approximation for -dy*sin cross-term.
-         * Accumulate into x_rem so slow cross-axis contributions don't vanish. */
-        data->x_rem += (int32_t)dx * cfg->cos_fp - data->prev_dy * cfg->sin_fp;
-        int32_t rotated = data->x_rem >> 10;
-        data->x_rem -= rotated << 10;
         event->type = INPUT_EV_REL;
         event->code = INPUT_REL_X;
-        event->value = rotated;
+        event->value = delta;
     } else if (event->code == INPUT_ABS_Y) {
         int16_t cur = (int16_t)event->value;
-        int16_t dy = data->initialized ? (cur - data->prev_y) : 0;
+        int16_t delta = data->initialized ? (cur - data->prev_y) : 0;
         if (cfg->max_delta > 0) {
-            if (dy >  (int16_t)cfg->max_delta) dy =  (int16_t)cfg->max_delta;
-            if (dy < -(int16_t)cfg->max_delta) dy = -(int16_t)cfg->max_delta;
+            if (delta >  (int16_t)cfg->max_delta) delta =  (int16_t)cfg->max_delta;
+            if (delta < -(int16_t)cfg->max_delta) delta = -(int16_t)cfg->max_delta;
         }
         data->prev_y = cur;
         data->initialized = true;
-        data->prev_dy = dy;
-        /* Y: cur_dx (this cycle's dx) gives exact sin cross-term.
-         * Accumulate into y_rem so slow cross-axis contributions don't vanish. */
-        data->y_rem += data->cur_dx * cfg->sin_fp + (int32_t)dy * cfg->cos_fp;
-        int32_t rotated = data->y_rem >> 10;
-        data->y_rem -= rotated << 10;
         event->type = INPUT_EV_REL;
         event->code = INPUT_REL_Y;
-        event->value = rotated;
+        event->value = delta;
     }
 
     return ZMK_INPUT_PROC_CONTINUE;
@@ -102,8 +80,6 @@ static const struct zmk_input_processor_driver_api abs_to_rel_driver_api = {
     static struct abs_to_rel_data abs_to_rel_data_##n = {0};                           \
     static const struct abs_to_rel_config abs_to_rel_config_##n = {                    \
         .max_delta = DT_INST_PROP(n, max_delta),                                        \
-        .cos_fp    = DT_INST_PROP(n, rotation_cos_fp),                                  \
-        .sin_fp    = DT_INST_PROP(n, rotation_sin_fp),                                  \
     };                                                                                   \
     DEVICE_DT_INST_DEFINE(n, abs_to_rel_init, NULL, &abs_to_rel_data_##n,              \
                           &abs_to_rel_config_##n, POST_KERNEL,                           \
