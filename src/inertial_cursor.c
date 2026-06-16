@@ -47,10 +47,15 @@ int inertial_cursor_handle_touch(const struct device *dev, struct gesture_event_
         return -1;
     }
 
-    data->inertial_cursor.delta_x = event->delta_x;
-    data->inertial_cursor.delta_y = event->delta_y;
-    if (event->delta_time != 0) {
-        data->inertial_cursor.delta_time = event->delta_time;
+    if (event->delta_x != 0 || event->delta_y != 0) {
+        uint8_t idx = data->inertial_cursor.vel_head;
+        data->inertial_cursor.vel_dx[idx] = event->delta_x;
+        data->inertial_cursor.vel_dy[idx] = event->delta_y;
+        data->inertial_cursor.vel_dt[idx] = event->delta_time ? event->delta_time : 10;
+        data->inertial_cursor.vel_head = (idx + 1) % INERTIAL_CURSOR_VEL_WINDOW;
+        if (data->inertial_cursor.vel_count < INERTIAL_CURSOR_VEL_WINDOW) {
+            data->inertial_cursor.vel_count++;
+        }
     }
 
     return 0;
@@ -72,6 +77,8 @@ int inertial_cursor_handle_touch_start(const struct device *dev, struct gesture_
     data->inertial_cursor.delta_time = 0;
     data->inertial_cursor.accum_x = 0;
     data->inertial_cursor.accum_y = 0;
+    data->inertial_cursor.vel_head = 0;
+    data->inertial_cursor.vel_count = 0;
 
     inertial_cursor_handle_touch(dev, event);
 
@@ -86,26 +93,36 @@ int inertial_cursor_handle_end(const struct device *dev) {
         return -1;
     }
 
-    double velocity = sqrt(
-        data->inertial_cursor.delta_x * data->inertial_cursor.delta_x + 
-        data->inertial_cursor.delta_y * data->inertial_cursor.delta_y
-        ) / data->inertial_cursor.delta_time;
+    /* average the last N events to smooth out lift jitter and outlier spikes */
+    int n = data->inertial_cursor.vel_count;
+    if (n == 0) {
+        return -1;
+    }
+    double sum_dx = 0, sum_dy = 0;
+    uint32_t sum_dt = 0;
+    for (int i = 0; i < n; i++) {
+        sum_dx += data->inertial_cursor.vel_dx[i];
+        sum_dy += data->inertial_cursor.vel_dy[i];
+        sum_dt += data->inertial_cursor.vel_dt[i];
+    }
+    double avg_dx = sum_dx / n;
+    double avg_dy = sum_dy / n;
+    double avg_dt = (double)sum_dt / n;
 
+    double velocity = sqrt(avg_dx * avg_dx + avg_dy * avg_dy) / avg_dt;
 
-    LOG_DBG("velocity: %d, velocity_threshold: %d, too slow: %s", 
-        (int)velocity, 
-        (int) config->inertial_cursor.velocity_threshold, 
-        velocity <= config->inertial_cursor.velocity_threshold?"yes":"no");
+    LOG_DBG("velocity: %d (avg over %d events), threshold: %d",
+        (int)velocity, n, (int)config->inertial_cursor.velocity_threshold);
 
     if (velocity <= config->inertial_cursor.velocity_threshold) {
         return -1;
     }
 
-    if (data->inertial_cursor.delta_time > 0) {
-        double scale = (double)ANIMATE_MSEC / data->inertial_cursor.delta_time
+    if (avg_dt > 0) {
+        double scale = (double)ANIMATE_MSEC / avg_dt
                        * config->inertial_cursor.speed_scale / 100.0;
-        data->inertial_cursor.delta_x *= scale;
-        data->inertial_cursor.delta_y *= scale;
+        data->inertial_cursor.delta_x = avg_dx * scale;
+        data->inertial_cursor.delta_y = avg_dy * scale;
     }
 
     data->inertial_cursor.accum_x = 0;
