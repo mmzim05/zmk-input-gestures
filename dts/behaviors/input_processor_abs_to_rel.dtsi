@@ -1,0 +1,13 @@
+/ {
+    zip_abs_to_rel_cursor: zip_abs_to_rel_cursor {
+        compatible = "zmk,input-processor-abs-to-rel";
+        #input-processor-cells = <0>;
+        status = "okay";
+    };
+
+    zip_abs_to_rel_scroll: zip_abs_to_rel_scroll {
+        compatible = "zmk,input-processor-abs-to-rel";
+        #input-processor-cells = <0>;
+        status = "okay";
+    };
+};

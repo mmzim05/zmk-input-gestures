@@ -45,6 +45,11 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
+    // Scroll-only instance: only the WHEEL branch above should trigger, skip XY processing
+    if (config->inertial_scroll.enabled && !config->inertial_cursor.enabled) {
+        return ZMK_INPUT_PROC_CONTINUE;
+    }
+
     data->touch_detection.complete = !data->touch_detection.complete;
 
     if (data->touch_detection.complete && data->touch_detection.absolute != (event->type == INPUT_EV_ABS)) {
