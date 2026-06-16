@@ -14,9 +14,15 @@ properties:
     description: |
       Clamp per-tick delta to ±max-delta raw units. 0 = unlimited.
       Use to cap cursor speed so a fast fling doesn't overshoot the screen.
-  rotation-degrees:
+  rotation-cos-fp:
+    type: int
+    default: 1024
+    description: |
+      Cosine of CCW rotation angle, scaled by 1024. Default 1024 = no rotation.
+      For 10° CCW: 1008. For 20° CCW: 962. For 15° CCW: 989.
+  rotation-sin-fp:
     type: int
     default: 0
     description: |
-      Rotate input coordinates counter-clockwise by this many degrees.
-      Use to compensate for physical trackpad orientation.
+      Sine of CCW rotation angle, scaled by 1024. Default 0 = no rotation.
+      For 10° CCW: 178. For 20° CCW: 350. For 15° CCW: 265.

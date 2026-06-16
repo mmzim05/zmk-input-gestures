@@ -6,9 +6,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 #include "input_processor_gestures.h"
 #include "inertial_cursor.h"
 
@@ -54,8 +51,8 @@ int inertial_cursor_handle_touch(const struct device *dev, struct gesture_event_
     if (event->delta_x != 0 || event->delta_y != 0) {
         double dx = event->delta_x;
         double dy = event->delta_y;
-        double c = data->inertial_cursor.cos_val;
-        double s = data->inertial_cursor.sin_val;
+        double c = config->inertial_cursor.cos_fp / 1024.0;
+        double s = config->inertial_cursor.sin_fp / 1024.0;
         data->inertial_cursor.delta_x = dx * c - dy * s;
         data->inertial_cursor.delta_y = dx * s + dy * c;
     }
@@ -137,10 +134,6 @@ int inertial_cursor_init(const struct device *dev) {
         config->inertial_cursor.enabled ? "yes" : "no",
         config->inertial_cursor.velocity_threshold,
         config->inertial_cursor.decay_percent);
-
-    double rad = config->inertial_cursor.rotation_degrees * M_PI / 180.0;
-    data->inertial_cursor.cos_val = cos(rad);
-    data->inertial_cursor.sin_val = sin(rad);
 
     if (!config->inertial_cursor.enabled) {
         return -1;

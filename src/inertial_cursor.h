@@ -9,7 +9,6 @@ struct inertial_cursor_data {
     double accum_x, accum_y;
     uint32_t delta_time;
     double velocity_decay;
-    double cos_val, sin_val;
     gesture_data *all;
 };
 
@@ -17,7 +16,8 @@ struct inertial_cursor_config {
     const bool enabled;
     const uint16_t velocity_threshold;
     const uint8_t decay_percent;
-    const int32_t rotation_degrees;
+    const int16_t cos_fp;  /* cos(rotation) * 1024 */
+    const int16_t sin_fp;  /* sin(rotation) * 1024 */
 };
 
 handle_init_t inertial_cursor_init;
