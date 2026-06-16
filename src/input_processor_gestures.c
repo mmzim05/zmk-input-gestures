@@ -9,6 +9,7 @@
 #include <drivers/input_processor.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zmk/keymap.h>
 #include "input_processor_gestures.h"
 
 #include "touch_detection.h"
@@ -30,6 +31,10 @@ static void handle_init(const struct device *dev) {
 
 static int handle_touch_start(const struct device *dev, struct gesture_event_t *event) {
     LOG_DBG("handle_touch_start");
+    struct gesture_config *config = (struct gesture_config *)dev->config;
+    if (config->hold_layer >= 0) {
+        zmk_keymap_layer_activate(config->hold_layer);
+    }
     circular_scroll_handle_start(dev, event);
     tap_detection_handle_start(dev, event);
     inertial_cursor_handle_touch_start(dev, event);
@@ -48,9 +53,13 @@ static int handle_touch(const struct device *dev, struct gesture_event_t *event)
 
 static int handle_touch_end(const struct device *dev) {
     LOG_DBG("handle_touch_end");
+    struct gesture_config *config = (struct gesture_config *)dev->config;
     circular_scroll_handle_end(dev);
     inertial_cursor_handle_end(dev);
     inertial_scroll_handle_end(dev);
+    if (config->hold_layer >= 0) {
+        zmk_keymap_layer_deactivate(config->hold_layer);
+    }
     return 0;
 }
 
@@ -106,6 +115,7 @@ static const struct zmk_input_processor_driver_api gestures_driver_api = {
         .handle_touch_start = &handle_touch_start,                                                          \
         .handle_touch_continue = &handle_touch,                                                             \
         .handle_touch_end = &handle_touch_end,                                                              \
+        .hold_layer = DT_INST_PROP_OR(n, hold_layer, -1),                                                  \
         .tap_detection = tap_detection_config_##n,                                                          \
         .touch_detection = touch_detection_config_##n,                                                      \
         .circular_scroll = circular_scroll_config_##n,                                                      \

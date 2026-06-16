@@ -48,7 +48,8 @@ struct gesture_config {
     handle_touch_t *handle_touch_start;
     handle_touch_t *handle_touch_continue;
     handle_touch_end_t *handle_touch_end;
-    
+
+    int hold_layer;
     struct touch_detection_config touch_detection;
     struct tap_detection_config tap_detection;
     struct circular_scroll_config circular_scroll;

@@ -44,6 +44,13 @@ properties:
       slows down the cursor.
       The default value mimics a relatively high friction.
     
+  hold-layer:
+    type: int
+    default: -1
+    description: |
+      Layer to activate while a finger is on the touchpad (touch start) and deactivate when lifted.
+      Set to -1 (default) to disable.
+
   inertial-scroll:
     type: boolean
     description: |
