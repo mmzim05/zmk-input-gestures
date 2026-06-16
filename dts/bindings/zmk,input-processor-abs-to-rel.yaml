@@ -14,3 +14,9 @@ properties:
     description: |
       Clamp per-tick delta to ±max-delta raw units. 0 = unlimited.
       Use to cap cursor speed so a fast fling doesn't overshoot the screen.
+  rotation-degrees:
+    type: int
+    default: 0
+    description: |
+      Rotate input coordinates counter-clockwise by this many degrees.
+      Use to compensate for physical trackpad orientation.

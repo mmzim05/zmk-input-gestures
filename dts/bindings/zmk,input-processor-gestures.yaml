@@ -119,6 +119,13 @@ properties:
       to activate.
       The default value is a good compromise that works for me.
 
+  rotation-degrees:
+    type: int
+    default: 0
+    description: |
+      Rotate inertial cursor movement counter-clockwise by this many degrees.
+      Should match the rotation-degrees set on the abs-to-rel processor.
+
   wait-for-new-position-ms:
     type: int
     default: 30
