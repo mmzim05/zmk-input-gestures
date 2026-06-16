@@ -27,9 +27,13 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
+    /* Cirque at 100 Hz: >300 raw units/tick is physically impossible during a
+     * continuous stroke but easily exceeded when the finger lifts and re-lands
+     * at a different position.  Treat such jumps as a new touch (delta = 0). */
     if (event->code == INPUT_ABS_X) {
         int16_t cur = (int16_t)event->value;
         int16_t delta = data->initialized ? (cur - data->prev_x) : 0;
+        if (delta > 300 || delta < -300) { delta = 0; }
         data->prev_x = cur;
         event->type = INPUT_EV_REL;
         event->code = INPUT_REL_X;
@@ -37,6 +41,7 @@ static int abs_to_rel_handle_event(const struct device *dev, struct input_event 
     } else if (event->code == INPUT_ABS_Y) {
         int16_t cur = (int16_t)event->value;
         int16_t delta = data->initialized ? (cur - data->prev_y) : 0;
+        if (delta > 300 || delta < -300) { delta = 0; }
         data->prev_y = cur;
         data->initialized = true;
         event->type = INPUT_EV_REL;
