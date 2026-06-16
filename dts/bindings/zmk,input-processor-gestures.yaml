@@ -43,7 +43,15 @@ properties:
       A lower value will make the cursor move longer after the touch ends - kinda like changing the friction that
       slows down the cursor.
       The default value mimics a relatively high friction.
-    
+  inertial-cursor-speed-scale:
+    type: int
+    default: 100
+    description: |
+      Percentage applied to the inertial cursor starting velocity so it matches
+      the live cursor speed. Set this to the numerator of your zip_xy_scaler to
+      compensate for the scaler being bypassed during inertial animation.
+      E.g. if using "zip_xy_scaler 75 100", set to 75.
+
   hold-layer:
     type: int
     default: -1

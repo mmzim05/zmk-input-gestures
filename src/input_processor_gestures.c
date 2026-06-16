@@ -105,6 +105,7 @@ static const struct zmk_input_processor_driver_api gestures_driver_api = {
         .enabled = DT_INST_PROP(n, inertial_cursor),                                                        \
         .velocity_threshold = DT_INST_PROP(n, inertial_cursor_velocity_threshold),                          \
         .decay_percent = DT_INST_PROP(n, inertial_cursor_decay_percent),                                    \
+        .speed_scale = DT_INST_PROP(n, inertial_cursor_speed_scale),                                        \
     };                                                                                                      \
     static const struct inertial_scroll_config inertial_scroll_config_##n = {                               \
         .enabled = DT_INST_PROP(n, inertial_scroll),                                                        \

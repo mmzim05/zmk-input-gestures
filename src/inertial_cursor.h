@@ -16,6 +16,7 @@ struct inertial_cursor_config {
     const bool enabled;
     const uint16_t velocity_threshold;
     const uint8_t decay_percent;
+    const uint8_t speed_scale; /* percent: match to zip_xy_scaler numerator */
 };
 
 handle_init_t inertial_cursor_init;
