@@ -44,6 +44,22 @@ properties:
       slows down the cursor.
       The default value mimics a relatively high friction.
     
+  inertial-scroll:
+    type: boolean
+    description: |
+      If the scroll moves faster than inertial-scroll-velocity-threshold when the touch ends, scrolling
+      keeps going in the same direction, gradually slowing by inertial-scroll-decay-percent.
+  inertial-scroll-velocity-threshold:
+    type: int
+    default: 1
+    description: |
+      Minimum velocity to trigger inertial scroll. Lower = easier to activate.
+  inertial-scroll-decay-percent:
+    type: int
+    default: 5
+    description: |
+      Percent speed lost per animation frame. Lower = longer glide.
+
   circular-scroll:
     type: boolean
     description: |

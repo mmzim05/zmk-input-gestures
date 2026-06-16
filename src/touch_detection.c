@@ -17,6 +17,30 @@ int touch_detection_handle_event(const struct device *dev, struct input_event *e
     struct gesture_data *data = (struct gesture_data *)dev->data;
     k_work_reschedule(&data->touch_detection.touch_end_timeout_work, K_MSEC(config->touch_detection.wait_for_new_position_ms));
 
+    if (event->type == INPUT_EV_REL &&
+        (event->code == INPUT_REL_WHEEL || event->code == INPUT_REL_HWHEEL) &&
+        config->inertial_scroll.enabled) {
+        if (event->code == INPUT_REL_WHEEL) {
+            data->touch_detection.scroll_v = event->value;
+        } else {
+            data->touch_detection.scroll_h = event->value;
+        }
+        uint32_t now = k_uptime_get();
+        struct gesture_event_t gesture_event = {
+            .delta_x = data->touch_detection.scroll_h,
+            .delta_y = data->touch_detection.scroll_v,
+            .delta_time = now - data->touch_detection.last_touch_timestamp,
+        };
+        data->touch_detection.last_touch_timestamp = now;
+        if (!data->touch_detection.touching) {
+            data->touch_detection.touching = true;
+            config->handle_touch_start(dev, &gesture_event);
+        } else {
+            config->handle_touch_continue(dev, &gesture_event);
+        }
+        return ZMK_INPUT_PROC_CONTINUE;
+    }
+
     if (event->type != INPUT_EV_ABS && event->type != INPUT_EV_REL) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
@@ -87,6 +111,8 @@ void touch_end_timeout_callback(struct k_work *work) {
     
     data->touching = false;
     data->complete = true;
+    data->scroll_v = 0;
+    data->scroll_h = 0;
     config->handle_touch_end(dev);
 }
 

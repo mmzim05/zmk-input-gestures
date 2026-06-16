@@ -15,6 +15,7 @@
 #include "tap_detection.h"
 #include "circular_scroll.h"
 #include "inertial_cursor.h"
+#include "inertial_scroll.h"
 
 
 LOG_MODULE_REGISTER(gestures, CONFIG_ZMK_LOG_LEVEL);
@@ -24,6 +25,7 @@ static void handle_init(const struct device *dev) {
     tap_detection_init(dev);
     circular_scroll_init(dev);
     inertial_cursor_init(dev);
+    inertial_scroll_init(dev);
 }
 
 static int handle_touch_start(const struct device *dev, struct gesture_event_t *event) {
@@ -31,6 +33,7 @@ static int handle_touch_start(const struct device *dev, struct gesture_event_t *
     circular_scroll_handle_start(dev, event);
     tap_detection_handle_start(dev, event);
     inertial_cursor_handle_touch_start(dev, event);
+    inertial_scroll_handle_touch_start(dev, event);
     return 0;
 }
 
@@ -39,6 +42,7 @@ static int handle_touch(const struct device *dev, struct gesture_event_t *event)
     circular_scroll_handle_touch(dev, event);
     tap_detection_handle_touch(dev, event);
     inertial_cursor_handle_touch(dev, event);
+    inertial_scroll_handle_touch(dev, event);
     return 0;
 }
 
@@ -46,6 +50,7 @@ static int handle_touch_end(const struct device *dev) {
     LOG_DBG("handle_touch_end");
     circular_scroll_handle_end(dev);
     inertial_cursor_handle_end(dev);
+    inertial_scroll_handle_end(dev);
     return 0;
 }
 
@@ -57,6 +62,7 @@ static int gestures_init(const struct device *dev) {
     data->tap_detection.all = data;
     data->circular_scroll.all = data;
     data->inertial_cursor.all = data;
+    data->inertial_scroll.all = data;
 
     handle_init(dev);
     return 0;
@@ -91,6 +97,11 @@ static const struct zmk_input_processor_driver_api gestures_driver_api = {
         .velocity_threshold = DT_INST_PROP(n, inertial_cursor_velocity_threshold),                          \
         .decay_percent = DT_INST_PROP(n, inertial_cursor_decay_percent),                                    \
     };                                                                                                      \
+    static const struct inertial_scroll_config inertial_scroll_config_##n = {                               \
+        .enabled = DT_INST_PROP(n, inertial_scroll),                                                        \
+        .velocity_threshold = DT_INST_PROP(n, inertial_scroll_velocity_threshold),                          \
+        .decay_percent = DT_INST_PROP(n, inertial_scroll_decay_percent),                                    \
+    };                                                                                                      \
     static const struct gesture_config gesture_config_##n = {                                               \
         .handle_touch_start = &handle_touch_start,                                                          \
         .handle_touch_continue = &handle_touch,                                                             \
@@ -99,6 +110,7 @@ static const struct zmk_input_processor_driver_api gestures_driver_api = {
         .touch_detection = touch_detection_config_##n,                                                      \
         .circular_scroll = circular_scroll_config_##n,                                                      \
         .inertial_cursor = inertial_cursor_config_##n,                                                      \
+        .inertial_scroll = inertial_scroll_config_##n,                                                      \
     };                                                                                                      \
     DEVICE_DT_INST_DEFINE(n, gestures_init, NULL, &gesture_data_##n,                    \
                           &gesture_config_##n, POST_KERNEL, CONFIG_INPUT_GESTURES_INIT_PRIORITY,            \

@@ -28,6 +28,7 @@ typedef int (handle_touch_end_t)(const struct device *dev);
 #include "tap_detection.h"
 #include "circular_scroll.h"
 #include "inertial_cursor.h"
+#include "inertial_scroll.h"
 
 struct gesture_data {
     const struct device *dev;
@@ -40,6 +41,7 @@ struct gesture_data {
     struct tap_detection_data tap_detection;
     struct circular_scroll_data circular_scroll;
     struct inertial_cursor_data inertial_cursor;
+    struct inertial_scroll_data inertial_scroll;
 };
 
 struct gesture_config {
@@ -51,4 +53,5 @@ struct gesture_config {
     struct tap_detection_config tap_detection;
     struct circular_scroll_config circular_scroll;
     struct inertial_cursor_config inertial_cursor;
+    struct inertial_scroll_config inertial_scroll;
 };
