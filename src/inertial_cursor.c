@@ -48,6 +48,11 @@ int inertial_cursor_handle_touch(const struct device *dev, struct gesture_event_
     }
 
     if (event->delta_x != 0 || event->delta_y != 0) {
+        /* skip implausibly large deltas (Pinnacle calibration glitch or BLE corruption) */
+        int32_t adx = abs(event->delta_x), ady = abs(event->delta_y);
+        if (adx > 250 || ady > 250) {
+            return 0;
+        }
         uint8_t idx = data->inertial_cursor.vel_head;
         data->inertial_cursor.vel_dx[idx] = event->delta_x;
         data->inertial_cursor.vel_dy[idx] = event->delta_y;
