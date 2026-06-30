@@ -119,18 +119,14 @@ static int periph_gesture_handle_event(const struct device *dev,
     struct periph_gesture_data *data = dev->data;
     const struct periph_gesture_config *cfg = dev->config;
 
-    /* let injected REL events (and any other non-ABS/non-SYN) pass through */
+    /* injected REL events (from our own inertial/live path) pass through to BLE */
     if (event->type == INPUT_EV_REL) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
-    /* stop all SYN — we generate our own via input_report_rel sync=true */
-    if (event->type == INPUT_EV_SYN) {
-        return ZMK_INPUT_PROC_STOP;
-    }
-
+    /* only handle ABS events from Cirque; drop everything else (KEY, etc.) */
     if (event->type != INPUT_EV_ABS) {
-        return ZMK_INPUT_PROC_CONTINUE;
+        return ZMK_INPUT_PROC_STOP;
     }
 
     /* --- ABS event from Cirque --- */
