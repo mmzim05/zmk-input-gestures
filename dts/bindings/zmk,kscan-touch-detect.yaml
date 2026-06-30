@@ -1,0 +1,8 @@
+description: |
+  Virtual keyboard scan device driven by the peripheral_gesture processor.
+  Reports a single key at (row=0, col=0) on touch start/end.
+  Wire into zmk,kscan-composite so the touch key looks like any real key.
+
+compatible: "zmk,kscan-touch-detect"
+
+include: base.yaml

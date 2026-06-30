@@ -1,0 +1,52 @@
+description: |
+  Input processor for the peripheral (right) half of a split keyboard.
+  Converts raw ABS_X/Y events from a Cirque trackpad into REL_X/Y deltas,
+  tracks velocity, and runs inertial animation — all on the peripheral, so
+  BLE carries only non-zero REL events and virtual key reports.
+
+compatible: "zmk,input-peripheral-gesture"
+
+include: ip_zero_param.yaml
+
+properties:
+  device:
+    type: phandle
+    required: true
+    description: The Cirque trackpad input device (used as source for input_report_rel).
+
+  touch-key:
+    type: phandle
+    required: true
+    description: zmk,kscan-touch-detect device to notify on touch start/end.
+
+  max-delta:
+    type: int
+    required: false
+    default: 60
+    description: Maximum per-poll abs delta in raw Pinnacle units. Clamps jump glitches.
+
+  touch-timeout-ms:
+    type: int
+    required: false
+    default: 30
+    description: Milliseconds of silence before touch-end is declared.
+
+  velocity-threshold:
+    type: int
+    required: false
+    default: 3
+    description: Minimum velocity (in tenths of raw_px/ms) required to start inertial animation.
+
+  decay-percent:
+    type: int
+    required: false
+    default: 9
+    description: Percent of velocity lost per 16ms animation frame.
+
+  speed-scale:
+    type: int
+    required: false
+    default: 100
+    description: |
+      Inertial starting speed scale (percent). 100 = match zip_xy_scaler 100/100.
+      Set to match the numerator of the zip_xy_scaler on the central/dongle.

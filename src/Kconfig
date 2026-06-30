@@ -14,3 +14,17 @@ config INPUT_GESTURES_INIT_PRIORITY
     default INPUT_INIT_PRIORITY
     depends on ZMK_INPUT_PROCESSOR_GESTURES
 
+DT_COMPAT_ZMK_INPUT_PERIPHERAL_GESTURE := zmk,input-peripheral-gesture
+
+config ZMK_INPUT_PERIPHERAL_GESTURE
+        bool
+        default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PERIPHERAL_GESTURE))
+        depends on ZMK_POINTING
+        depends on (!ZMK_SPLIT || !ZMK_SPLIT_ROLE_CENTRAL)
+
+DT_COMPAT_ZMK_KSCAN_TOUCH_DETECT := zmk,kscan-touch-detect
+
+config ZMK_KSCAN_TOUCH_DETECT
+        bool
+        default $(dt_compat_enabled,$(DT_COMPAT_ZMK_KSCAN_TOUCH_DETECT))
+

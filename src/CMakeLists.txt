@@ -17,3 +17,13 @@ if (CONFIG_ZMK_INPUT_PROCESSOR_GESTURES)
     zephyr_library_sources(inertial_scroll.c)
     zephyr_library_sources(input_processor_abs_to_rel.c)
 endif()
+
+if (CONFIG_ZMK_KSCAN_TOUCH_DETECT)
+    zephyr_library()
+    zephyr_library_sources(kscan_touch_detect.c)
+endif()
+
+if (CONFIG_ZMK_INPUT_PERIPHERAL_GESTURE)
+    zephyr_library()
+    zephyr_library_sources(peripheral_gesture.c)
+endif()
