@@ -26,6 +26,16 @@
 LOG_MODULE_REGISTER(periph_gesture, CONFIG_ZMK_LOG_LEVEL);
 
 /* ------------------------------------------------------------------ */
+/* dedicated work queue                                                */
+/* The system workqueue (default 1024 B) overflows when               */
+/* touch_end_handler calls into the ZMK kscan/split/BLE stack.        */
+/* Use our own 2 KB queue instead.                                     */
+/* ------------------------------------------------------------------ */
+
+K_THREAD_STACK_DEFINE(gesture_work_stack, CONFIG_ZMK_INPUT_PERIPHERAL_GESTURE_WORKQ_STACK_SIZE);
+static struct k_work_q gesture_work_q;
+
+/* ------------------------------------------------------------------ */
 /* inertial animation work                                             */
 /* ------------------------------------------------------------------ */
 
@@ -56,7 +66,7 @@ static void inertial_work_handler(struct k_work *work) {
         data->delta_y_fp > 2 || data->delta_y_fp < -2 ||
         data->accum_x_fp > 127 || data->accum_x_fp < -127 ||
         data->accum_y_fp > 127 || data->accum_y_fp < -127) {
-        k_work_reschedule(&data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
+        k_work_reschedule_for_queue(&gesture_work_q, &data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
     }
 }
 
@@ -114,7 +124,7 @@ static void touch_end_handler(struct k_work *work) {
                                      / ((int64_t)effective_sum_dt * 100));
         data->accum_x_fp = 0;
         data->accum_y_fp = 0;
-        k_work_reschedule(&data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
+        k_work_reschedule_for_queue(&gesture_work_q, &data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
     }
 
     zmk_kscan_touch_report(cfg->touch_key_dev, false);
@@ -144,7 +154,7 @@ static int periph_gesture_handle_event(const struct device *dev,
     /* --- ABS event from Cirque --- */
 
     /* reschedule touch-end timeout */
-    k_work_reschedule(&data->touch_end_work, K_MSEC(cfg->touch_timeout_ms));
+    k_work_reschedule_for_queue(&gesture_work_q, &data->touch_end_work, K_MSEC(cfg->touch_timeout_ms));
 
     /* detect touch start */
     if (!data->touching) {
@@ -217,6 +227,16 @@ static int periph_gesture_init(const struct device *dev) {
     const struct periph_gesture_config *cfg = dev->config;
 
     data->dev = dev;
+
+    /* start dedicated work queue on first instance only */
+    static bool workq_started;
+    if (!workq_started) {
+        k_work_queue_init(&gesture_work_q);
+        k_work_queue_start(&gesture_work_q, gesture_work_stack,
+                           K_THREAD_STACK_SIZEOF(gesture_work_stack),
+                           CONFIG_ZMK_INPUT_PERIPHERAL_GESTURE_WORKQ_PRIORITY, NULL);
+        workq_started = true;
+    }
 
     k_work_init_delayable(&data->touch_end_work, touch_end_handler);
     k_work_init_delayable(&data->inertial_work,  inertial_work_handler);

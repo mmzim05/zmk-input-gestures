@@ -22,6 +22,16 @@ config ZMK_INPUT_PERIPHERAL_GESTURE
         depends on ZMK_POINTING
         depends on (!ZMK_SPLIT || !ZMK_SPLIT_ROLE_CENTRAL)
 
+config ZMK_INPUT_PERIPHERAL_GESTURE_WORKQ_STACK_SIZE
+        int "Peripheral gesture work queue stack size"
+        depends on ZMK_INPUT_PERIPHERAL_GESTURE
+        default 2048
+
+config ZMK_INPUT_PERIPHERAL_GESTURE_WORKQ_PRIORITY
+        int "Peripheral gesture work queue thread priority"
+        depends on ZMK_INPUT_PERIPHERAL_GESTURE
+        default 5
+
 DT_COMPAT_ZMK_KSCAN_TOUCH_DETECT := zmk,kscan-touch-detect
 
 config ZMK_KSCAN_TOUCH_DETECT
