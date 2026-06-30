@@ -1,26 +1,65 @@
 # zmk-input-gestures
 
-Custom ZMK input processor module for the Toucan split keyboard. Adds gesture support (tap, inertial cursor, inertial scroll, circular scroll) on top of the Cirque Pinnacle trackpad.
+Custom ZMK input processor module for the Toucan split keyboard.
 
-## What was done
+## Architecture
 
-- Added `zmk,input-processor-abs-to-rel` — converts ABS_X/Y events from the Cirque (absolute mode) into REL_X/Y deltas, with max-delta clamping and sub-pixel accumulators so small movements aren't lost to truncation
-- Fixed inertial cursor velocity estimation: replaced single-event snapshot with a 5-event circular buffer (`vel_dx/dy/dt`) that averages the last 5 event pairs — eliminates outlier spikes at lift
-- Fixed inertial cursor speed: added `inertial-cursor-speed-scale` property (percent) applied to starting velocity so inertial animation matches live cursor speed (compensates for `zip_xy_scaler` being bypassed during HID output)
-- Rescaled cursor and scroll velocity thresholds to tenths of raw_px/ms so small values are expressible (DT value 3 = 0.3 raw_px/ms)
-- Applied same 5-event velocity window + stale-delta fix + tenths threshold to inertial scroll (`src/inertial_scroll.c`)
+All trackpad intelligence runs on the right (peripheral) half. The central receives only:
+- Non-zero `REL_X`/`REL_Y` events during live finger movement or inertial animation
+- Virtual key press/release via the kscan path when the finger touches/lifts
+
+This eliminates BLE overload: old arch sent ~300 ABS events/sec (3 per poll × 100Hz), which exceeded the 133-slot/sec capacity of a 7.5ms BLE connection interval.
+
+## Drivers and processors
+
+### `zmk,input-peripheral-gesture` (`src/peripheral_gesture.c`)
+
+Input processor for the right half's `glidepoint_split.input-processors`.
+
+- Receives raw `ABS_X`/`ABS_Y` from Cirque at ~100Hz
+- Converts to `REL_X`/`REL_Y` deltas with `max-delta` clamping
+- Maintains a 5-event velocity window for smooth inertial start velocity
+- On touch start: cancels any running inertial animation, notifies `touch_kscan` (key press)
+- On touch end (timeout): computes velocity with staleness check, starts inertial animation if above threshold, notifies `touch_kscan` (key release)
+- Inertial animation: decays velocity by `decay-percent` per 16ms frame, injects `REL_X`/`REL_Y` via `input_report_rel()`
+- Stops all `INPUT_EV_ABS` and non-REL events — only injected REL pairs cross BLE
+
+### `zmk,kscan-touch-detect` (`src/kscan_touch_detect.c`)
+
+Virtual kscan driver with one key at (row=0, col=0). Driven by `zmk_kscan_touch_report(dev, pressed)` called from `peripheral_gesture`. Wire into `zmk,kscan-composite` so the touch key looks like any real keyboard key and can carry any ZMK behavior (mo, tap-dance, macros, etc.).
+
+### `zmk,input-processor-abs-to-rel` (`src/input_processor_abs_to_rel.c`)
+
+Standalone ABS→REL converter (still available but no longer used in the Toucan config — superseded by `peripheral_gesture` on the right half).
+
+### `zmk,input-processor-gestures` (`src/input_processor_gestures.c`)
+
+Original gesture processor (tap, inertial cursor/scroll, circular scroll). Still used when the central needs to process gesture data — but not in the current Toucan config.
+
+## DT binding properties — `zmk,input-peripheral-gesture`
+
+| Property | Default | Meaning |
+|---|---|---|
+| `device` | required | Phandle to the Cirque device (used as source for `input_report_rel`) |
+| `touch-key` | required | Phandle to `zmk,kscan-touch-detect` device |
+| `max-delta` | 60 | Per-poll abs delta clamp (raw Pinnacle units) |
+| `touch-timeout-ms` | 30 | Ms of silence before touch-end declared |
+| `velocity-threshold` | 3 | Min velocity in tenths of raw_px/ms to start inertial |
+| `decay-percent` | 9 | % speed lost per 16ms animation frame |
+| `speed-scale` | 100 | Inertial start speed scale — set to match `zip_xy_scaler` numerator |
 
 ## Key files
 
-- `src/input_processor_abs_to_rel.c` — ABS→REL converter
-- `src/inertial_cursor.c` / `src/inertial_cursor.h` — inertial cursor animation, 5-event velocity window
-- `src/inertial_scroll.c` / `src/inertial_scroll.h` — inertial scroll animation, same 5-event window
-- `dts/bindings/zmk,input-processor-gestures.yaml` — gesture processor DT binding
-- `dts/bindings/zmk,input-processor-abs-to-rel.yaml` — abs-to-rel DT binding
+- `src/peripheral_gesture.c` / `.h` — peripheral-side gesture processor
+- `src/kscan_touch_detect.c` / `.h` — virtual kscan driver for touch key
+- `src/input_processor_gestures.c` — original central-side gesture processor
+- `src/input_processor_abs_to_rel.c` — standalone ABS→REL converter
+- `dts/bindings/zmk,input-peripheral-gesture.yaml`
+- `dts/bindings/zmk,kscan-touch-detect.yaml`
 
 ## Picking up in a new session
 
 1. Read this file and `CLAUDE.md` in `zmk-config-toucan`
-2. Check `git log --oneline -10` to see recent changes
-3. The companion config repo is `mmzim05/zmk-config-toucan` at `~/Documents/github/zmk-config-toucan`
-4. After any code change: commit + push to `main`, then trigger a build in the config repo and download firmware
+2. Check `git log --oneline -10` for recent changes
+3. Config repo: `~/Documents/github/zmk-config-toucan`
+4. After any change: commit + push to `main`, then trigger build in config repo
