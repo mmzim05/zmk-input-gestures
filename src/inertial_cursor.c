@@ -133,9 +133,6 @@ int inertial_cursor_handle_end(const struct device *dev) {
     data->inertial_cursor.accum_x = 0;
     data->inertial_cursor.accum_y = 0;
 
-    zmk_hid_mouse_movement_set(0, 0);
-    zmk_endpoints_send_mouse_report();
-
     k_work_reschedule(&data->inertial_cursor.inertial_work, K_MSEC(ANIMATE_MSEC));
 
     return 0;
