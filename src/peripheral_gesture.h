@@ -26,11 +26,10 @@ struct periph_gesture_data {
     uint8_t vel_head;
     uint8_t vel_count;
 
-    /* inertial animation */
+    /* inertial animation (Q8 fixed-point: value × 256 = raw_px) */
     struct k_work_delayable inertial_work;
-    double delta_x, delta_y;
-    double accum_x, accum_y;
-    double velocity_decay;
+    int32_t delta_x_fp, delta_y_fp;
+    int32_t accum_x_fp, accum_y_fp;
 
     const struct device *dev;
 };

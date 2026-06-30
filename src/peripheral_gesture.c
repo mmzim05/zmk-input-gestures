@@ -19,7 +19,6 @@
 #include <zephyr/input/input.h>
 #include <zephyr/logging/log.h>
 #include <drivers/input_processor.h>
-#include <math.h>
 
 #include "peripheral_gesture.h"
 #include "kscan_touch_detect.h"
@@ -36,23 +35,27 @@ static void inertial_work_handler(struct k_work *work) {
         CONTAINER_OF(d, struct periph_gesture_data, inertial_work);
     const struct periph_gesture_config *cfg = data->dev->config;
 
-    data->delta_x *= data->velocity_decay;
-    data->delta_y *= data->velocity_decay;
-    data->accum_x += data->delta_x;
-    data->accum_y += data->delta_y;
+    /* decay: Q8 × (100 - decay_percent) / 100 */
+    data->delta_x_fp = data->delta_x_fp * (100 - cfg->decay_percent) / 100;
+    data->delta_y_fp = data->delta_y_fp * (100 - cfg->decay_percent) / 100;
+    data->accum_x_fp += data->delta_x_fp;
+    data->accum_y_fp += data->delta_y_fp;
 
-    int sx = (int)data->accum_x;
-    int sy = (int)data->accum_y;
-    data->accum_x -= (double)sx;
-    data->accum_y -= (double)sy;
+    int sx = data->accum_x_fp >> 8;
+    int sy = data->accum_y_fp >> 8;
+    data->accum_x_fp -= sx << 8;
+    data->accum_y_fp -= sy << 8;
 
     if (sx != 0 || sy != 0) {
         input_report_rel(cfg->cirque_dev, INPUT_REL_X, sx, false, K_NO_WAIT);
         input_report_rel(cfg->cirque_dev, INPUT_REL_Y, sy, true,  K_NO_WAIT);
     }
 
-    if (fabs(data->delta_x) > 0.01 || fabs(data->delta_y) > 0.01 ||
-        fabs(data->accum_x) >= 0.5   || fabs(data->accum_y) >= 0.5) {
+    /* stop when |delta| < 0.01 px (Q8: 3) and |accum| < 0.5 px (Q8: 128) */
+    if (data->delta_x_fp > 2 || data->delta_x_fp < -2 ||
+        data->delta_y_fp > 2 || data->delta_y_fp < -2 ||
+        data->accum_x_fp > 127 || data->accum_x_fp < -127 ||
+        data->accum_y_fp > 127 || data->accum_y_fp < -127) {
         k_work_reschedule(&data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
     }
 }
@@ -75,33 +78,42 @@ static void touch_end_handler(struct k_work *work) {
         return;
     }
 
-    double sum_dx = 0, sum_dy = 0;
+    int32_t sum_dx = 0, sum_dy = 0;
     uint32_t sum_dt = 0;
     for (int i = 0; i < n; i++) {
         sum_dx += data->vel_dx[i];
         sum_dy += data->vel_dy[i];
         sum_dt += data->vel_dt[i];
     }
-    double avg_dx = sum_dx / n;
-    double avg_dy = sum_dy / n;
-    double avg_dt = (double)sum_dt / n;
 
-    /* if finger was held still before lifting, elapsed >> avg_dt → low velocity */
+    /* staleness check: if held still before lift, elapsed×n > sum_dt → use elapsed */
     uint32_t elapsed = k_uptime_get() - data->last_event_ms;
-    double effective_dt = (elapsed > (uint32_t)avg_dt) ? (double)elapsed : avg_dt;
+    uint32_t elapsed_total = elapsed * (uint32_t)n;
+    uint32_t effective_sum_dt = (elapsed_total > sum_dt) ? elapsed_total : sum_dt;
+    if (effective_sum_dt == 0) effective_sum_dt = 1;
 
-    double velocity = sqrt(avg_dx * avg_dx + avg_dy * avg_dy) / effective_dt;
+    /* velocity check via Manhattan distance (no sqrt, no float):
+     * (|avg_dx| + |avg_dy|) × 10 > velocity_threshold × avg_dt
+     * → (|sum_dx| + |sum_dy|) × 10 > velocity_threshold × effective_sum_dt */
+    int32_t abs_dx = sum_dx < 0 ? -sum_dx : sum_dx;
+    int32_t abs_dy = sum_dy < 0 ? -sum_dy : sum_dy;
+    bool fast = ((abs_dx + abs_dy) * 10 > (int32_t)(cfg->velocity_threshold * effective_sum_dt));
 
-    LOG_DBG("touch_end: vel=%.3f (thr=%.1f) n=%d eff_dt=%.0f",
-            velocity, (double)cfg->velocity_threshold / 10.0, n, effective_dt);
+    LOG_DBG("touch_end: fast=%d sum=(%d,%d) eff_sum_dt=%u n=%d",
+            fast, sum_dx, sum_dy, effective_sum_dt, n);
 
-    if (velocity > (double)cfg->velocity_threshold / 10.0) {
-        double scale = (double)PERIPH_GESTURE_ANIMATE_MSEC / avg_dt
-                       * cfg->speed_scale / 100.0;
-        data->delta_x = avg_dx * scale;
-        data->delta_y = avg_dy * scale;
-        data->accum_x = 0;
-        data->accum_y = 0;
+    if (fast) {
+        /* delta_fp (Q8) = sum_dx × ANIMATE_MSEC × speed_scale × 256
+         *                 / (effective_sum_dt × 100)
+         * int64 intermediate to avoid overflow */
+        data->delta_x_fp = (int32_t)((int64_t)sum_dx * PERIPH_GESTURE_ANIMATE_MSEC
+                                     * cfg->speed_scale * 256
+                                     / ((int64_t)effective_sum_dt * 100));
+        data->delta_y_fp = (int32_t)((int64_t)sum_dy * PERIPH_GESTURE_ANIMATE_MSEC
+                                     * cfg->speed_scale * 256
+                                     / ((int64_t)effective_sum_dt * 100));
+        data->accum_x_fp = 0;
+        data->accum_y_fp = 0;
         k_work_reschedule(&data->inertial_work, K_MSEC(PERIPH_GESTURE_ANIMATE_MSEC));
     }
 
@@ -140,8 +152,8 @@ static int periph_gesture_handle_event(const struct device *dev,
         k_work_cancel_delayable(&data->inertial_work);
         data->vel_head = 0;
         data->vel_count = 0;
-        data->accum_x = 0;
-        data->accum_y = 0;
+        data->accum_x_fp = 0;
+        data->accum_y_fp = 0;
         data->initialized = false;
         data->last_event_ms = k_uptime_get();
         zmk_kscan_touch_report(cfg->touch_key_dev, true);
@@ -205,7 +217,6 @@ static int periph_gesture_init(const struct device *dev) {
     const struct periph_gesture_config *cfg = dev->config;
 
     data->dev = dev;
-    data->velocity_decay = (100.0 - cfg->decay_percent) / 100.0;
 
     k_work_init_delayable(&data->touch_end_work, touch_end_handler);
     k_work_init_delayable(&data->inertial_work,  inertial_work_handler);

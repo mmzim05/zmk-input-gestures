@@ -28,3 +28,10 @@ config ZMK_KSCAN_TOUCH_DETECT
         bool
         default $(dt_compat_enabled,$(DT_COMPAT_ZMK_KSCAN_TOUCH_DETECT))
 
+config ZMK_HEARTBEAT_LED
+        bool "Blink built-in LED as heartbeat (crash detection)"
+        depends on GPIO
+        help
+          Blinks the led0 alias at 1 Hz. If blinking stops, the MCU crashed.
+          If BLE drops but blinking continues, the fault is in the BLE link.
+
