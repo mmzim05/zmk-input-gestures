@@ -17,6 +17,7 @@ struct periph_gesture_data {
     /* touch detection */
     bool touching;
     uint32_t last_event_ms;
+    struct k_work touch_start_work;
     struct k_work_delayable touch_end_work;
 
     /* velocity window */

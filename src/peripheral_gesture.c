@@ -71,6 +71,17 @@ static void inertial_work_handler(struct k_work *work) {
 }
 
 /* ------------------------------------------------------------------ */
+/* touch-start notification                                            */
+/* ------------------------------------------------------------------ */
+
+static void touch_start_handler(struct k_work *work) {
+    struct periph_gesture_data *data =
+        CONTAINER_OF(work, struct periph_gesture_data, touch_start_work);
+    const struct periph_gesture_config *cfg = data->dev->config;
+    zmk_kscan_touch_report(cfg->touch_key_dev, true);
+}
+
+/* ------------------------------------------------------------------ */
 /* touch-end timeout                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -166,7 +177,7 @@ static int periph_gesture_handle_event(const struct device *dev,
         data->accum_y_fp = 0;
         data->initialized = false;
         data->last_event_ms = k_uptime_get();
-        zmk_kscan_touch_report(cfg->touch_key_dev, true);
+        k_work_submit_to_queue(&gesture_work_q, &data->touch_start_work);
     }
 
     if (event->code == INPUT_ABS_X) {
@@ -238,6 +249,7 @@ static int periph_gesture_init(const struct device *dev) {
         workq_started = true;
     }
 
+    k_work_init(&data->touch_start_work, touch_start_handler);
     k_work_init_delayable(&data->touch_end_work, touch_end_handler);
     k_work_init_delayable(&data->inertial_work,  inertial_work_handler);
 
