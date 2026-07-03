@@ -50,3 +50,11 @@ properties:
     description: |
       Inertial starting speed scale (percent). 100 = match zip_xy_scaler 100/100.
       Set to match the numerator of the zip_xy_scaler on the central/dongle.
+
+  rotate-cdeg:
+    type: int
+    required: false
+    default: 0
+    description: |
+      Virtual rotation of the trackpad input in centidegrees, counter-clockwise positive.
+      Applied to REL deltas before velocity tracking and inertial animation.

@@ -19,6 +19,7 @@
 #include <zephyr/input/input.h>
 #include <zephyr/logging/log.h>
 #include <drivers/input_processor.h>
+#include <math.h>
 
 #include "peripheral_gesture.h"
 #include "kscan_touch_detect.h"
@@ -200,6 +201,14 @@ static int periph_gesture_handle_event(const struct device *dev,
 
         int32_t dx = data->pending_dx;
 
+        /* apply virtual rotation (Q8: value × 256) */
+        if (data->rotate_sin_q8 != 0) {
+            int32_t rdx = (dx * data->rotate_cos_q8 - dy * data->rotate_sin_q8 + 128) >> 8;
+            int32_t rdy = (dx * data->rotate_sin_q8 + dy * data->rotate_cos_q8 + 128) >> 8;
+            dx = rdx;
+            dy = rdy;
+        }
+
         /* update velocity window */
         uint32_t now = k_uptime_get();
         uint32_t dt = now - data->last_event_ms;
@@ -239,6 +248,16 @@ static int periph_gesture_init(const struct device *dev) {
 
     data->dev = dev;
 
+    /* precompute rotation trig (Q8: × 256). init-time only, FPU cost is fine */
+    if (cfg->rotate_cdeg != 0) {
+        float rad = cfg->rotate_cdeg * (3.14159265f / 18000.0f);
+        data->rotate_sin_q8 = (int16_t)(sinf(rad) * 256.0f);
+        data->rotate_cos_q8 = (int16_t)(cosf(rad) * 256.0f);
+    } else {
+        data->rotate_sin_q8 = 0;
+        data->rotate_cos_q8 = 256;
+    }
+
     /* start dedicated work queue on first instance only */
     static bool workq_started;
     if (!workq_started) {
@@ -273,6 +292,7 @@ static int periph_gesture_init(const struct device *dev) {
         .velocity_threshold = DT_INST_PROP(n, velocity_threshold),               \
         .decay_percent   = DT_INST_PROP(n, decay_percent),                       \
         .speed_scale     = DT_INST_PROP(n, speed_scale),                         \
+        .rotate_cdeg     = DT_INST_PROP(n, rotate_cdeg),                         \
     };                                                                            \
     DEVICE_DT_INST_DEFINE(n, periph_gesture_init, NULL,                          \
                           &periph_gesture_data_##n,                               \

@@ -33,6 +33,10 @@ struct periph_gesture_data {
     int32_t accum_x_fp, accum_y_fp;
 
     const struct device *dev;
+
+    /* rotation (Q8 fixed-point: value × 256 = trig value) */
+    int16_t rotate_sin_q8;
+    int16_t rotate_cos_q8;
 };
 
 struct periph_gesture_config {
@@ -43,4 +47,5 @@ struct periph_gesture_config {
     uint8_t velocity_threshold;
     uint8_t decay_percent;
     uint8_t speed_scale;
+    int32_t rotate_cdeg;
 };
