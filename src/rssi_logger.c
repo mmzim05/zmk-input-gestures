@@ -9,9 +9,11 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
+#include <zephyr/sys/byteorder.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/hci_types.h>
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/logging/log.h>
 
@@ -23,7 +25,9 @@ static int8_t read_conn_rssi(struct bt_conn *conn) {
         return 127;
     }
 
-    struct net_buf *buf = bt_hci_cmd_alloc(K_FOREVER);
+    /* bt_hci_cmd_alloc() was removed upstream; bt_hci_cmd_create() takes the
+     * opcode + param length directly and reserves the same headroom. */
+    struct net_buf *buf = bt_hci_cmd_create(BT_HCI_OP_READ_RSSI, sizeof(struct bt_hci_cp_read_rssi));
     if (!buf) {
         return 127;
     }
