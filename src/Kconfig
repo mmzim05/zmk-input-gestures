@@ -45,3 +45,11 @@ config ZMK_HEARTBEAT_LED
           Blinks the led0 alias at 1 Hz. If blinking stops, the MCU crashed.
           If BLE drops but blinking continues, the fault is in the BLE link.
 
+config ZMK_RSSI_LOGGER
+        bool "Log RSSI of every active BLE connection every 5s (diagnostic)"
+        depends on BT_CTLR_CONN_RSSI
+        help
+          Temporary diagnostic for range/instability debugging. Logs peer
+          address + dBm for every connection via BT_HCI_OP_READ_RSSI.
+          Remove once diagnosed.
+
