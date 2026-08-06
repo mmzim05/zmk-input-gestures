@@ -6,7 +6,7 @@
 #pragma once
 
 #define PERIPH_GESTURE_VEL_WINDOW 5
-#define PERIPH_GESTURE_ANIMATE_MSEC 32
+#define PERIPH_GESTURE_ANIMATE_MSEC 10
 
 struct periph_gesture_data {
     /* abs-to-rel state */

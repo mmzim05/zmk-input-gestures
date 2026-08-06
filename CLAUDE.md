@@ -61,7 +61,7 @@ Optional crash-detection heartbeat: blinks `led0` at 1 Hz via system workqueue. 
 ## Key constants (`src/peripheral_gesture.h`)
 
 - `PERIPH_GESTURE_VEL_WINDOW 5` — number of events in velocity ring buffer
-- `PERIPH_GESTURE_ANIMATE_MSEC 32` — inertial tick interval (31 Hz); lower = smoother but more BLE events
+- `PERIPH_GESTURE_ANIMATE_MSEC 10` — inertial tick interval (100 Hz, matches Cirque poll rate)
 
 ## Kconfig options
 
