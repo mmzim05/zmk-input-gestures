@@ -16,6 +16,7 @@ struct periph_gesture_data {
 
     /* touch detection */
     bool touching;
+    uint8_t confirm_count;
     uint32_t last_event_ms;
     struct k_work touch_start_work;
     struct k_work_delayable touch_end_work;
@@ -48,4 +49,5 @@ struct periph_gesture_config {
     uint8_t decay_percent;
     uint8_t speed_scale;
     int32_t rotate_cdeg;
+    uint8_t touch_confirm_samples;
 };

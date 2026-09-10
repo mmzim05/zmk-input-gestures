@@ -20,7 +20,7 @@ Input processor for the right half's `glidepoint_split.input-processors`.
 - Applies virtual rotation (`rotate-cdeg`, Q8 sin/cos precomputed with sinf/cosf at init — float OK at init, not in hot path)
 - Converts to `REL_X`/`REL_Y` deltas with `max-delta` clamping
 - Maintains a 5-event velocity window (Q8 fixed-point — no float in hot path)
-- On touch start: submits `touch_start_work` to `gesture_work_q` to call `zmk_kscan_touch_report(true)` — MUST NOT call directly from INPUT THREAD (deep BLE chain overflows 1024B default INPUT THREAD stack)
+- On touch start: waits for `touch-confirm-samples` consecutive ABS samples (default 2) before treating it as real — filters single-sample phantom touches (electrical noise) that would otherwise fire `zmk_kscan_touch_report(true)` and reset the ZMK idle/sleep timer for nothing. Once confirmed, submits `touch_start_work` to `gesture_work_q` to call `zmk_kscan_touch_report(true)` — MUST NOT call directly from INPUT THREAD (deep BLE chain overflows 1024B default INPUT THREAD stack)
 - On touch end (timeout): computes velocity with staleness check, starts inertial animation if above threshold, notifies `touch_kscan` key release
 - Inertial animation: 32ms timer, decays velocity by `decay_percent` per frame, injects `REL_X`/`REL_Y` via `input_report_rel()`; uses Q8 fixed-point accumulator for sub-pixel precision
 - Stops all `INPUT_EV_ABS` and non-REL events — only injected REL pairs cross BLE
@@ -57,11 +57,12 @@ Optional crash-detection heartbeat: blinks `led0` at 1 Hz via system workqueue. 
 | `decay-percent` | 9 | % speed lost per `PERIPH_GESTURE_ANIMATE_MSEC` frame |
 | `speed-scale` | 100 | Inertial start speed scale — set to match `zip_xy_scaler` numerator |
 | `rotate-cdeg` | 0 | Virtual rotation in centidegrees, CCW positive |
+| `touch-confirm-samples` | 2 | Consecutive ABS samples required before touch is confirmed (kscan press + idle-timer reset). 1 = old immediate-press behavior |
 
 ## Key constants (`src/peripheral_gesture.h`)
 
 - `PERIPH_GESTURE_VEL_WINDOW 5` — number of events in velocity ring buffer
-- `PERIPH_GESTURE_ANIMATE_MSEC 10` — inertial tick interval (100 Hz, matches Cirque poll rate)
+- `PERIPH_GESTURE_ANIMATE_MSEC 10` — inertial tick interval, hardcoded at 100 Hz (matches Cirque poll rate) always, including during inertial glide after lift. Do not reintroduce a slower post-lift tick to fight range/BLE issues — that's the antenna's job (`docs/antenna-mod.md` in zmk-config-toucan), not the cursor's.
 
 ## Kconfig options
 
