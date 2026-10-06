@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+  Drops all input events (zeroes their value). Use as the input-processors
+  list in an input-listener's per-layer override to fully disable a pointing
+  device's effect — movement, scroll, and buttons — while that layer is active.
+
+compatible: "zmk,input-processor-drop"
+
+include: ip_zero_param.yaml

@@ -33,6 +33,12 @@ Input processor for the right half's `glidepoint_split.input-processors`.
 
 Virtual kscan driver with one key at (row=0, col=0). Driven by `zmk_kscan_touch_report(dev, pressed)` called from `peripheral_gesture`. Wire into `zmk,kscan-composite` so the touch key looks like any real keyboard key and can carry any ZMK behavior (mo, tap-dance, macros, etc.).
 
+### `zmk,input-processor-drop` (`src/input_processor_drop.c`)
+
+Zeroes `event->value` on every event and returns `ZMK_INPUT_PROC_CONTINUE`. Wire it into an `input-listener`'s per-layer `input-processors` override to fully disable a pointing device (movement, scroll, clicks) while that layer is active — e.g. the right half's trackpad on a GAME layer.
+
+Must mutate the event rather than return `ZMK_INPUT_PROC_STOP`: ZMK core's `filter_with_input_config()` swallows a `STOP` returned from inside a matched layer override (it hard-codes `return 0` when `process_next` is unset), so the original event still reaches `handle_rel_code()`/`handle_key_code()` afterward regardless of what the override's processor chain returned.
+
 ### `zmk,input-processor-abs-to-rel` (`src/input_processor_abs_to_rel.c`)
 
 Standalone ABS→REL converter (still available but not used in the Toucan config — superseded by `peripheral_gesture`).
@@ -77,6 +83,7 @@ Optional crash-detection heartbeat: blinks `led0` at 1 Hz via system workqueue. 
 - `src/kscan_touch_detect.c` / `.h` — virtual kscan driver for touch key
 - `src/heartbeat_led.c` — optional heartbeat LED
 - `src/input_processor_gestures.c` — original central-side gesture processor
+- `src/input_processor_drop.c` — zeroes events; used to disable the trackpad on specific layers
 - `src/input_processor_abs_to_rel.c` — standalone ABS→REL converter
 - `dts/bindings/zmk,input-peripheral-gesture.yaml`
 - `dts/bindings/zmk,kscan-touch-detect.yaml`
