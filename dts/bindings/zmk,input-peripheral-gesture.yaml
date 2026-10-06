@@ -41,7 +41,18 @@ properties:
     type: int
     required: false
     default: 9
-    description: Percent of velocity lost per 16ms animation frame.
+    description: Percent of velocity lost per PERIPH_GESTURE_ANIMATE_MSEC (10ms, 100Hz) animation frame.
+
+  touch-confirm-samples:
+    type: int
+    required: false
+    default: 2
+    description: |
+      Consecutive ABS samples required before a touch is confirmed (kscan press
+      reported, touch_start_work submitted). Filters single-sample phantom
+      touches from electrical noise so they never reach zmk_position_state_changed
+      and reset the idle/sleep timer. Adds (n-1) × Cirque poll interval of
+      latency to real touch-down detection.
 
   speed-scale:
     type: int

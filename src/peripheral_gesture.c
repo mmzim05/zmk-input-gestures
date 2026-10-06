@@ -92,7 +92,14 @@ static void touch_end_handler(struct k_work *work) {
         CONTAINER_OF(d, struct periph_gesture_data, touch_end_work);
     const struct periph_gesture_config *cfg = data->dev->config;
 
+    bool was_touching = data->touching;
     data->touching = false;
+    data->confirm_count = 0;
+
+    if (!was_touching) {
+        /* never reached touch-confirm-samples: phantom blip, nothing was pressed */
+        return;
+    }
 
     int n = data->vel_count;
     if (n == 0) {
@@ -168,9 +175,10 @@ static int periph_gesture_handle_event(const struct device *dev,
     /* reschedule touch-end timeout */
     k_work_reschedule_for_queue(&gesture_work_q, &data->touch_end_work, K_MSEC(cfg->touch_timeout_ms));
 
-    /* detect touch start */
-    if (!data->touching) {
-        data->touching = true;
+    /* start of a new touch sequence: reset per-touch state exactly once.
+     * X and Y arrive as separate events, so gate on confirm_count (not yet
+     * touching) rather than re-running per event. */
+    if (!data->touching && data->confirm_count == 0) {
         k_work_cancel_delayable(&data->inertial_work);
         data->vel_head = 0;
         data->vel_count = 0;
@@ -178,7 +186,6 @@ static int periph_gesture_handle_event(const struct device *dev,
         data->accum_y_fp = 0;
         data->initialized = false;
         data->last_event_ms = k_uptime_get();
-        k_work_submit_to_queue(&gesture_work_q, &data->touch_start_work);
     }
 
     if (event->code == INPUT_ABS_X) {
@@ -226,6 +233,18 @@ static int periph_gesture_handle_event(const struct device *dev,
         if (dx != 0 || dy != 0) {
             input_report_rel(cfg->cirque_dev, INPUT_REL_X, dx, false, K_NO_WAIT);
             input_report_rel(cfg->cirque_dev, INPUT_REL_Y, dy, true,  K_NO_WAIT);
+        }
+
+        /* confirm touch once touch-confirm-samples full (X+Y) samples have been
+         * seen, gated here (not the shared ABS entry point above) so a sample
+         * counts once, not twice. Filters single-sample phantom touches
+         * (electrical noise) before they reach kscan and reset the idle timer. */
+        if (!data->touching) {
+            data->confirm_count++;
+            if (data->confirm_count >= cfg->touch_confirm_samples) {
+                data->touching = true;
+                k_work_submit_to_queue(&gesture_work_q, &data->touch_start_work);
+            }
         }
 
         return ZMK_INPUT_PROC_STOP;
@@ -293,6 +312,7 @@ static int periph_gesture_init(const struct device *dev) {
         .decay_percent   = DT_INST_PROP(n, decay_percent),                       \
         .speed_scale     = DT_INST_PROP(n, speed_scale),                         \
         .rotate_cdeg     = DT_INST_PROP(n, rotate_cdeg),                         \
+        .touch_confirm_samples = DT_INST_PROP(n, touch_confirm_samples),         \
     };                                                                            \
     DEVICE_DT_INST_DEFINE(n, periph_gesture_init, NULL,                          \
                           &periph_gesture_data_##n,                               \
